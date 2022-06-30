@@ -1,0 +1,663 @@
+<html>
+<head>
+<style>
+html, body {
+  margin: 0;
+}
+</style>
+<script>
+
+const levels = [
+'BBBBBBBBBBBBBBBB'+
+'BBBBB        L B'+
+'BBBB         L B'+
+'BBB          L B'+
+'BB           L B'+
+'B            L B'+
+'B            L B'+
+'BTTTT        L B'+
+'BSSSS        L B'+
+'BCCCC        L B'+
+'BXXXX        L B'+
+'BBBBBBBBBBBBBG B'
+,
+'BBBBBBBBBBBBBBBB'+
+'BBBBB        L B'+
+'BBBB         L B'+
+'BBB          L B'+
+'BB           L B'+
+'B            L B'+
+'B            L B'+
+'BXTCS        L B'+
+'BXTCS        L B'+
+'BXTCS        L B'+
+'BXTCS        L B'+
+'BBBBBBBBBBBBBG B'
+,
+'BBBBBBBBBBBBBBBB'+
+'BBBBB        L B'+
+'BBBB         L B'+
+'BBB          L B'+
+'BB           L B'+
+'B            L B'+
+'B            L B'+
+'BXXXX        L B'+
+'BXTTT        L B'+
+'BXTCC        L B'+
+'BXTCS        L B'+
+'BBBBBBBBBBBBBG B'
+,
+'BBBBBBBBBBBBBBBB'+
+'BBBBB        L B'+
+'BBBB         L B'+
+'BBB          L B'+
+'BB           L B'+
+'B            L B'+
+'B            L B'+
+'BXXXX        L B'+
+'BXSSX        L B'+
+'BXSSX        L B'+
+'BXXXX        L B'+
+'BBBBBBBBBBBBBG B'
+,
+'BBBBBBBBBBBBBBBB'+
+'BBBBB        L B'+
+'BBBB         L B'+
+'BBB          L B'+
+'BB           L B'+
+'B            L B'+
+'B            L B'+
+'BXXSS        L B'+
+'BTTCC        L B'+
+'BSSTT        L B'+
+'BXXCC        L B'+
+'BBBBBBBBBBBBBG B'
+,
+'BBBBBBBBBBBBBBBB'+
+'BBBBB        L B'+
+'BBBB         L B'+
+'BBB          L B'+
+'BB           L B'+
+'B            L B'+
+'BSTTSX       L B'+
+'BSSTXS       L B'+
+'BCTXCS       L B'+
+'BSTXTC       L B'+
+'BCXTCS       L B'+
+'BBBBBBBBBBBBBG B'
+,
+'BBBBBBBBBBBBBBBB'+
+'B            L B'+
+'B  B         L B'+
+'BCB          L B'+
+'BB           L B'+
+'B            L B'+
+'B     B      L B'+
+'B    B       L B'+
+'B            L B'+
+'B            L B'+
+'BTSCSBCXT    L B'+
+'BBBBBBBBBBBBBG B'
+,
+'BBBBBBBBBBBBBBBB'+
+'B            L B'+
+'B            L B'+
+'B   BB  BB   L B'+
+'B  BBBBBBBB  L B'+
+'B  BBBBBBBB  L B'+
+'B   BBBBBB   L B'+
+'B    BBBB    L B'+
+'B     BB     L B'+
+'B            L B'+
+'B            L B'+
+'BBBBBBBBBBBBBG B'
+]
+
+function loadSprites(files, completionHandler){
+	var numLoaded = 0;
+	var numError = 0;
+	var sprites = {};
+	var checkDone = function(){
+		if (numLoaded + numError == files.length){
+			completionHandler(sprites, numLoaded, numError);
+		}
+	}
+	for (let file of files){
+		let img = new Image();		
+		img.src = file + ".png";
+		sprites[file] = img;
+		img.onload = function () {						
+			numLoaded++;			
+			checkDone();
+		};
+		img.onerror = function () {						
+			numError++;
+			checkDone();
+		};
+	}
+}
+
+const Actions = {
+	Idle: 0,
+	Up: 1,
+	Down: 2,
+	Throw: 3,
+	Celebrate: 4,
+	Cry: 5
+}
+
+class Keyboard{
+	constructor(){
+		this.desiredAction = Actions.Idle;
+	
+		document.addEventListener('keydown', (ev) => {
+			if (ev.key == "ArrowDown" || ev.keyCode == 83 || ev.keyCode == 40){
+				this.desiredAction =  Actions.Down;
+			}
+			if (ev.key == "ArrowUp" || ev.keyCode == 87|| ev.keyCode == 38){
+				this.desiredAction = Actions.Up;
+			}
+			
+			if (ev.key == "Space" || ev.keyCode == 32){
+				this.desiredAction = Actions.Throw;
+			}
+			
+			ev.preventDefault();    
+			return false;
+		}, false);
+		
+		document.addEventListener('keyup', (ev) => {
+			this.desiredAction = Actions.Idle;
+			ev.preventDefault();
+			return false;
+		}, false);
+	}
+	
+	getDesiredAction(){
+		return this.desiredAction;
+	}
+}
+
+class Touch{	
+	constructor(){
+		var canvas = document.getElementById("MyCanvas");
+		this.desiredAction = Actions.Idle;
+		
+		canvas.addEventListener('touchstart', (e)=>{		
+			var touchobj = e.changedTouches[0];
+			var rect = canvas.getBoundingClientRect();
+			
+			let x = touchobj.clientX - rect.left;
+			let y = touchobj.clientY - rect.top;
+			
+			if (x < 384){
+				this.desiredAction = Actions.Throw;
+			}
+			
+			this.touchActive = {x: x, y: y};
+			
+			e.preventDefault();
+		}, false);
+		
+		canvas.addEventListener('touchmove', (e)=>{
+			if (e.buttons == 0) return;
+			var touchobj = e.changedTouches[0];
+			var rect = canvas.getBoundingClientRect();
+			
+			let x = touchobj.clientX - rect.left;
+			let y = touchobj.clientY - rect.top;
+			
+			console.log(y - this.touchActive.y);
+			
+			if ( this.touchActive && this.touchActive.x > 384){
+				if (y - this.touchActive.y < -10){
+					this.desiredAction = Actions.Up;
+				}
+				
+				if (y - this.touchActive.y > 10){
+					this.desiredAction = Actions.Down;
+				}
+			}
+			
+			
+			e.preventDefault();
+		}, false);
+		
+		canvas.addEventListener('touchend', (e)=>{
+			var touchobj = e.changedTouches[0];
+			var rect = canvas.getBoundingClientRect();
+			
+			let x = touchobj.clientX - rect.left;
+			let y = touchobj.clientY - rect.top;
+			
+			this.desiredAction = Actions.Idle;
+			this.touchActive = null;
+			
+			e.preventDefault();
+		}, false);
+	}
+	
+	getDesiredAction(){
+		return this.desiredAction;
+	}
+}
+
+class MultiController{
+	constructor(a, b){
+		this.a = a;
+		this.b = b;
+	}
+	
+	getDesiredAction(){
+		if (this.a.getDesiredAction() != Actions.Idle){
+			return this.a.getDesiredAction();
+		}
+		return this.b.getDesiredAction();
+	}
+	
+}
+
+class Game {
+
+	setSprites(sprites){
+		this.sprites = sprites;
+	}
+	
+	start(){
+	    var canvas = document.getElementById("MyCanvas");
+		var ctx = canvas.getContext("2d");
+		
+		canvas.addEventListener('contextmenu', function(ev) {
+			ev.preventDefault();    
+			return false;
+		}, false);		
+		
+		this.controller = new MultiController(new Keyboard(), new Touch());
+		
+		this.fuzzyY = 48*10;
+		this.brickSpawnX = 604;
+		this.brickX = 604;
+		
+		setInterval(()=>window.requestAnimationFrame((time)=>this.draw(ctx, time)), 16);
+		
+		this.level = 0;
+		this.map = levels[this.level];
+		
+		this.action = Actions.Idle;
+		this.destinationY = this.fuzzyY;
+		
+		this.frames = [];
+		this.frames.push({x:  0, y: 0, w: 64, h: 92});
+		this.frames.push({x: 65, y: 10, w: 64, h: 82});
+		this.frames.push({x: 128, y: 0, w: 64, h: 92});
+		this.frames.push({x: 190, y: 0, w: 64, h: 92});
+		this.frames.push({x: 254, y: 2, w: 64, h: 92});
+		this.frames.push({x: 317, y: 0, w: 64, h: 92});
+
+		this.throwableBrick = null;
+		
+		this.nextBlock = this.getRandomBlock();
+	}
+	
+	nextLevel(){
+		++this.level;
+		this.map = levels[this.level];
+		this.action = Actions.Idle;
+		this.nextBlock = this.getRandomBlock();
+	}
+	
+	
+	checkController(time){
+		if (this.action == Actions.Idle){			
+			if (this.controller.getDesiredAction() == Actions.Up && this.fuzzyY >= 48 * 2){
+				this.destinationY = this.fuzzyY - 48;
+				this.action = this.controller.getDesiredAction();
+				audio.climb.play();
+			}
+			if (this.controller.getDesiredAction() == Actions.Down && this.fuzzyY <= 48 * 9){
+				this.destinationY = this.fuzzyY + 48;
+				this.action = this.controller.getDesiredAction();
+				audio.climb.play();
+			}
+			
+			if (this.controller.getDesiredAction() == Actions.Throw && this.throwableBrick == null){
+				this.throwableBrick = new ThrowableBrick(time, -300 / 1000, this.brickSpawnX, this.fuzzyY, this.nextBlock);
+				audio.throwBrick.play();
+			}
+		}
+		
+		
+		
+		if (this.action == Actions.Up){
+			if (this.fuzzyY - 5 >= this.destinationY){
+				this.fuzzyY = this.fuzzyY - 5;
+			}else{
+				this.fuzzyY = this.destinationY;
+				this.action = Actions.Idle;
+			}
+		}
+		
+		if (this.action == Actions.Down){
+			if (this.fuzzyY + 5 <= this.destinationY){
+				this.fuzzyY = this.fuzzyY + 5;
+			}else{
+				this.fuzzyY = this.destinationY;
+				this.action = Actions.Idle;
+			}
+		}			
+	}
+	
+	drawBackground(ctx){
+		let sprite = this.sprites["Background"];
+		for (let y = 0; y < 12; ++y){
+			for (let x = 0; x < 16; ++x){								
+				ctx.drawImage(sprite, x * 48, y * 48, sprite.width, 48);
+			}
+		}
+	}
+	
+	drawLevel(ctx){
+		for (let y = 0; y < 12; ++y){
+			for (let x = 0; x < 16; ++x){
+				let block = this.map[y * 16 + x];
+				if (block != ' '){
+					let sprite = this.sprites["Block" + block];
+					ctx.drawImage(sprite, x * 48, y * 48, sprite.width, 48);
+				}
+			}
+		}
+	}
+	
+	draw(ctx, time){	
+		this.checkController(time);
+	
+		this.drawBackground(ctx);		
+		this.drawLevel(ctx);
+
+		
+		this.decideFuzzyFrame(ctx, time);
+						
+		
+		if (this.throwableBrick){
+			this.throwableBrick.update(time);
+			
+			this.checkCollision(time);
+			
+			if (this.throwableBrick){			
+				ctx.drawImage(this.sprites["Block" + this.throwableBrick.block], this.throwableBrick.x, this.throwableBrick.y, 48, 48);						
+			}
+		}else{
+			ctx.drawImage(this.sprites["Block" + this.nextBlock], this.brickX, this.fuzzyY, 48, 48);
+		}			
+	}
+	
+	destroyBrick(x, y){
+		let str = this.map.split('');
+		str[y * 16 + x] = ' ';
+		this.map = str.join('');
+	}
+	
+	isBreakable(block){
+		return block == 'X' || block == 'C' || block == 'T' || block == 'S';
+	}
+	
+	rearrangePile(){
+		var checkAgain;
+		let str = this.map.split('');
+		do{			
+			checkAgain = false;
+			for (let y = 11; y > 0; --y){
+				for (let x = 0; x < 16; ++x){
+					let block = str[y * 16 + x];
+					let blockAbove = str[(y-1) * 16 + x];
+					
+					if (block == ' ' && this.isBreakable(blockAbove)){
+						str[y * 16 + x] = blockAbove;
+						str[(y-1) * 16 + x] = ' ';
+						checkAgain = true;
+					}
+				}
+			}
+		}while(checkAgain);
+		this.map = str.join('');
+	}
+	
+	getAccessibleBricks(){
+		const accessibleBricks = new Set();	
+		//get left most breakable bricks per row
+		for (let y = 0; y < 12; ++y){
+			for (let x = 15; x >= 0; --x){
+				let block = this.map[y * 16 + x];				
+				if (this.isBreakable(block)){
+					accessibleBricks.add(block);
+					break;
+				}
+			}
+		}
+		
+		//get top most breakable bricks per column
+		for (let x = 0; x < 16; ++x){		
+			for (let y = 0; y < 12; ++y){			
+				let block = this.map[y * 16 + x];				
+				if (this.isBreakable(block)){
+					accessibleBricks.add(block);
+					break;
+				}
+			}
+		}
+		
+		return Array.from(accessibleBricks);
+		
+	}
+	
+	getRandomBlock(){
+		let accessibleBricks = this.getAccessibleBricks();
+		if (accessibleBricks.length == 0){
+			return 'X';
+		}
+		return accessibleBricks[Math.floor(Math.random() * accessibleBricks.length)];
+	}
+	
+	checkCollision(time){
+		var xx;
+		var yy;
+		if (this.throwableBrick.speedX < 0){
+			xx = Math.trunc(this.throwableBrick.x / 48);
+			yy = Math.trunc(this.throwableBrick.y / 48);
+		}
+		if (this.throwableBrick.speedY > 0){
+			xx = Math.trunc(this.throwableBrick.x / 48);
+			yy = Math.trunc((this.throwableBrick.y + 47) / 48);
+		}
+		
+		let block = this.map[yy * 16 + xx];
+		
+		if (block == this.throwableBrick.block){
+			this.destroyBrick(xx,yy);
+			this.throwableBrick.hadSuccessfulCollect = true;
+			
+			let hasWon = this.getAccessibleBricks().length == 0;
+			if (hasWon){
+				this.action = Actions.Celebrate;
+				audio.celebrate.play();
+				setTimeout(()=>{
+					this.nextLevel();
+				}, 2000);
+				
+			}else{
+				audio.collect.play();
+			}
+		}else if (this.isBreakable(block)){									
+			if (this.throwableBrick.hadSuccessfulCollect){
+				this.rearrangePile();
+				this.nextBlock = this.getRandomBlock();
+			} else{
+				audio.oops.play();
+			}
+			this.throwableBrick = null;			
+		}
+		
+		if (block == 'B'){
+			if (this.throwableBrick.speedX < 0){
+				this.throwableBrick.x = (xx + 1) * 48;
+				this.throwableBrick.fall(time);
+				audio.hitWall.play();
+			}else if (this.throwableBrick.speedY > 0){				
+				if (this.throwableBrick.hadSuccessfulCollect){
+					this.rearrangePile();
+					this.nextBlock = this.getRandomBlock();
+				}
+				this.throwableBrick = null;
+			}
+		}	
+		
+	}
+	
+	decideFuzzyFrame(ctx, time){
+		if (   this.action == Actions.Up 
+		    || this.action == Actions.Down 
+		    || (this.controller.getDesiredAction() == Actions.Up && this.fuzzyY >= 48 * 2)
+		    || (this.controller.getDesiredAction() ==  Actions.Down && this.fuzzyY <= 48 * 9))
+		{
+			if (this.animation == undefined || this.animation.constructor.name != "WalkAnimation"){
+				this.animation = new WalkAnimation(time, 150);
+			} else {
+				this.animation.update(time);
+			}			
+		} else if (this.action == Actions.Celebrate){
+			if (this.animation == undefined || this.animation.constructor.name != "CelebrateAnimation"){
+				this.animation = new CelebrateAnimation(time, 200, 180);
+			}else {
+				this.animation.update(time);
+			}
+			
+		}else {
+			if (this.animation == undefined || this.animation.constructor.name != "BlinkAnimation"){
+				this.animation = new BlinkAnimation(time, 4000, 200);
+			} else {
+				this.animation.update(time);
+			}
+		}
+		this.drawFuzzy(ctx, this.animation.getFrame());
+	}
+	
+	drawFuzzy(ctx, i){
+		let src = this.frames[i];
+		ctx.drawImage(this.sprites["fuzzy"], src.x, src.y, src.w, src.h,   652, this.fuzzyY-10, 64, 92);
+	}	
+}
+
+class ThrowableBrick{
+	constructor(time, speed, x, y, block){
+		this.prevTime = time;
+		this.x = x;
+		this.y = y;
+		this.speedX = speed;
+		this.speedY = 0;
+		this.block = block;
+	}
+	
+	update(time){
+	    this.x = this.x + (time - this.prevTime) * this.speedX;
+		this.y = this.y + (time - this.prevTime) * this.speedY;
+		this.prevTime = time;
+	}
+	
+	fall(time){
+		this.prevTime = time;
+		this.speedY = Math.abs(this.speedX);
+		this.speedX = 0;
+	}
+}
+
+class WalkAnimation{
+	constructor(time, frameDuration){
+		this.startTime = time;
+		this.frameDuration = frameDuration;
+		this.frame = 0;
+	}
+	
+	update(time){
+		if (time >= this.startTime + this.frameDuration){
+			this.frame = (this.frame + 1) % 2;
+			this.startTime = time;
+		}
+	}
+	
+	getFrame(){
+		return this.frame + 2;
+	}	
+}
+
+class BlinkAnimation{
+	constructor(time, timeIdle, blinkDuration){
+		this.startTime = time;
+		this.timeIdle = timeIdle;
+		this.blinkDuration = blinkDuration;
+		this.frame = 4;
+	}
+	
+	update(time){
+		if (time >= this.startTime + this.timeIdle + this.blinkDuration){
+			this.frame = 4;
+			this.startTime = time;
+		}
+		if (time >= this.startTime + this.timeIdle){
+			this.frame = 5;		
+		}
+	}
+	
+	getFrame(){
+		return this.frame;
+	}	
+}
+
+class CelebrateAnimation{
+	constructor(time, onFloorDuration, jumpDuration){
+		this.startTime = time;
+		this.onFloorDuration = onFloorDuration;
+		this.jumpDuration = jumpDuration;
+		this.frame = 0;
+	}
+	
+	update(time){
+		if (time >= this.startTime + this.onFloorDuration + this.jumpDuration){
+			this.frame = 0;
+			this.startTime = time;
+		}
+		if (time >= this.startTime + this.onFloorDuration){
+			this.frame = 1;		
+		}
+	}
+	
+	getFrame(){
+		return this.frame;
+	}	
+}
+
+var game = new Game();
+
+var audio = {
+	climb: new Audio('sounds/climb.wav'),
+	hitWall: new Audio('sounds/hit_wall.wav'),
+	collect: new Audio('sounds/collect.wav'),
+	throwBrick: new Audio('sounds/throw_brick.wav'),
+	oops: new Audio('sounds/oops.wav'),
+	celebrate:  new Audio('sounds/celebrate.wav'),
+};
+	
+loadSprites(["BlockB", "BlockC", "BlockS", "BlockT", "BlockX", "BlockL", "BlockG", "fuzzy", "Background"], 
+	(sprites, succeeded,failed)=>{	
+		game.setSprites(sprites);
+		game.start();
+	}
+);
+
+
+</script>
+</head>
+
+<body>
+<canvas id="MyCanvas" width="768" height="576" style="border:1px solid #000000; background-color:#000000;"></canvas>
+</body>
+</html>
