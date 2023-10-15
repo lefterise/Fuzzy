@@ -308,6 +308,9 @@ class Game {
 	
 	
 	checkController(time){
+		let dt = time - (this.prevTime ?? time);
+		this.prevTime = time;		
+		
 		if (this.action == Actions.Idle){			
 			if (this.controller.getDesiredAction() == Actions.Up && this.fuzzyY >= 48 * 2){
 				this.destinationY = this.fuzzyY - 48;
@@ -327,10 +330,10 @@ class Game {
 		}
 		
 		
-		
+		let distance = dt * 0.15;
 		if (this.action == Actions.Up){
-			if (this.fuzzyY - 5 >= this.destinationY){
-				this.fuzzyY = this.fuzzyY - 5;
+			if (this.fuzzyY - distance >= this.destinationY){
+				this.fuzzyY = this.fuzzyY - distance;
 			}else{
 				this.fuzzyY = this.destinationY;
 				this.action = Actions.Idle;
@@ -338,8 +341,8 @@ class Game {
 		}
 		
 		if (this.action == Actions.Down){
-			if (this.fuzzyY + 5 <= this.destinationY){
-				this.fuzzyY = this.fuzzyY + 5;
+			if (this.fuzzyY + distance <= this.destinationY){
+				this.fuzzyY = this.fuzzyY + distance;
 			}else{
 				this.fuzzyY = this.destinationY;
 				this.action = Actions.Idle;
